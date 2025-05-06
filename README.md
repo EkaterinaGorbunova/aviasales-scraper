@@ -1,6 +1,5 @@
 # Flight Ticket Tracker
 
-## Overview
 Flight Ticket Tracker is a simple application that helps travelers find the best flight deals. It automatically fetches flight ticket prices from aviasales.com using their Travelpayouts API and stores tickets information in a database for easy comparison and tracking.
 
 ## Problem Solved
