@@ -1,82 +1,39 @@
+# Flight Ticket Tracker
 
-Install Dependencies
-```bash
-npm init -y
-npm install axios @prisma/client
-npm install --save-dev prisma typescript ts-node @types/node
-npx tsc --init
-```
+## Overview
+Flight Ticket Tracker is a simple application that helps travelers find the best flight deals. It automatically fetches flight ticket prices from aviasales.com using their Travelpayouts API and stores tickets information in a database for easy comparison and tracking.
 
-Create Prisma & SQLite
+## Problem Solved
+Finding affordable flights on aviasales.com can be time-consuming and frustrating. This application automates the process of checking flight prices, allowing users to:
+- Track price changes for specific routes
+- Find the cheapest time to fly
+- Save money on travel expenses
 
-```bash
-npx prisma init --datasource-provider sqlite
-```
-This will create `prisma/schema.prisma file`. Replace its contents with:
+## Tech Stack
+- **Backend**: Node.js, TypeScript
+- **Database**: SQLite with Prisma ORM
+- **API**: Travelpayouts GraphQL API (aviasales.com data provider)
+- **Dependencies**: Axios for HTTP requests, dotenv for environment variables
 
-```prisma
-// prisma/schema.prisma
+## Current Features
+- Fetch flight prices from aviasales.com using Travelpayouts GraphQL API
+- Store flight data in SQLite database
+- Filter flights by origin, destination and date ranges
+- Sort results by price (lowest first)
+- Track round-trip flight information including:
+  - Departure and return dates
+  - Price
+  - Trip duration
+  - Airlines and flight numbers
+  - Direct ticket links to Aviasales.com
 
-generator client {
-  provider = "prisma-client-js"
-}
-
-datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
-}
-
-model Ticket {
-  id           Int    @id @default(autoincrement())
-  airline      String
-  departureAt  String
-  price        Int
-}
-```
-
-Generate a Prisma Client and create a database
-```bash
-npx prisma generate
-npx prisma db push
-```
-
-GraphQL:
-
-```GraphQL
-{
-  prices_round_trip(
-    params: {
-      origin: "YMQ"
-      destination: "YVR"
-      depart_date_min: "2025-07-25"
-      depart_date_max: "2025-07-29"
-      return_date_min: "2025-08-07"
-      return_date_max: "2025-08-11"
-      no_lowcost: true
-    }
-    paging: {
-      limit: 5
-      offset: 0
-    }
-    sorting: VALUE_ASC
-    currency: "cad"
-  ) {
-    departure_at
-    return_at
-    value  # price for round trip
-    trip_duration
-    ticket_link
-    segments {
-      flight_legs {
-        aircraft_code
-        flight_number
-        origin
-        destination
-        departure_at
-        arrival_at
-      }
-    }
-  }
-}
-```
+## Planned Features
+- Automated price checking at regular intervals
+- Price change notifications via email
+- Fare alerts when prices drop below a specified threshold
+- User accounts to save favorite routes
+- Price history graphs and analytics
+- Mobile-friendly web interface
+- Support for one-way flights and multi-city trips
+- Integration with calendar to find optimal travel dates
 
