@@ -86,7 +86,7 @@ const graphqlQuery = `
   }
 }`;
 
-async function fetchAndStoreTickets() {
+export async function fetchAndStoreTickets() {
   console.log("GraphQL API request started...");
   try {
     const response = await axios.post(
@@ -166,7 +166,7 @@ async function fetchAndStoreTickets() {
       });
     }
 
-    console.log(`✅ Saved ${tickets.length} tickets to SQLite.`);
+    console.log(`✅ Saved ${tickets.length} tickets to database.`);
   } catch (error: any) {
     console.error('Error executing request:', error);
     console.error('⚠️ API or database error:', error.response?.data || error.message);
@@ -177,12 +177,18 @@ async function fetchAndStoreTickets() {
       console.error('Response headers:', error.response.headers);
       console.error('Response data:', error.response.data);
     }
+    
+    // Re-throw the error so the caller can handle it
+    throw error;
   } finally {
     await prisma.$disconnect();
   }
 }
 
-fetchAndStoreTickets();
+// If this file is run directly, execute the function
+if (import.meta.url === `file://${process.argv[1]}`) {
+  fetchAndStoreTickets();
+}
 
 // Helper function to get the full URL
 function getFullTicketUrl(ticketPath: string): string {

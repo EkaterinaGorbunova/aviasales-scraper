@@ -12,7 +12,7 @@
             padding: 20px;
             line-height: 1.6;
         }
-        .status-card {
+        .card {
             background-color: #f5f5f5;
             border-radius: 8px;
             padding: 20px;
@@ -42,19 +42,56 @@
         h1 {
             color: #333;
         }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 10px 0;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
     </style>
 </head>
 <body>
     <h1>Flight Ticket Tracker</h1>
-    <p>This application automatically fetches flight ticket prices from aviasales.com using their Travelpayouts API.</p>
+    <p>This application automatically fetches flight ticket prices from Aviasales.com using their Travelpayouts API.</p>
     
-    <div class="status-card">
+    <div class="card">
         <h2>Server Status</h2>
         <div>
             <span id="status-indicator" class="status-indicator"></span>
             <span id="status-text" class="status-text">Checking...</span>
         </div>
         <p id="server-time" class="server-time"></p>
+    </div>
+    
+    <div class="card">
+        <h2>Manual Price Check</h2>
+        <p>Click the button below to manually trigger a price check:</p>
+        <button id="check-button" onclick="runPriceCheck()">Run Price Check</button>
+        <div id="check-result" style="display: none;" class="result"></div>
     </div>
 
     <script>
@@ -77,6 +114,56 @@
             }
         }
 
+        // Run price check
+        async function runPriceCheck() {
+            const button = document.getElementById('check-button');
+            const resultDiv = document.getElementById('check-result');
+            
+            // Disable button and show loading state
+            button.disabled = true;
+            button.textContent = 'Running...';
+            resultDiv.style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/run-price-check');
+                
+                // Check if response is OK
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                }
+                
+                // Try to parse JSON
+                let data;
+                try {
+                    data = await response.json();
+                } catch (parseError) {
+                    console.error('Failed to parse response as JSON:', parseError);
+                    const text = await response.text();
+                    console.error('Response text:', text);
+                    throw new Error('Server returned invalid JSON response');
+                }
+                
+                resultDiv.style.display = 'block';
+                
+                if (data.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ ${data.message} at ${new Date(data.timestamp).toLocaleString()}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ ${data.error}: ${data.message}`;
+                }
+            } catch (error) {
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Failed to run price check: ${error.message}`;
+                console.error('Error running price check:', error);
+            } finally {
+                // Re-enable button
+                button.disabled = false;
+                button.textContent = 'Run Price Check';
+            }
+        }
+
         // Check status immediately
         checkServerStatus();
         
@@ -85,3 +172,4 @@
     </script>
 </body>
 </html>
+

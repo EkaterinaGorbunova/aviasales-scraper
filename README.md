@@ -10,13 +10,13 @@ Finding affordable flights on aviasales.com can be time-consuming and frustratin
 
 ## Tech Stack
 - **Backend**: Node.js, TypeScript
-- **Database**: SQLite with Prisma ORM
+- **Database**: PostgreSQL with Prisma ORM
 - **API**: Travelpayouts GraphQL API (aviasales.com data provider)
 - **Dependencies**: Axios for HTTP requests, dotenv for environment variables
 
 ## Current Features
 - Fetch flight prices from aviasales.com using Travelpayouts GraphQL API
-- Store flight data in SQLite database
+- Store flight data in PostgreSQL database
 - Filter flights by origin, destination and date ranges
 - Sort results by price (lowest first)
 - Track round-trip flight information including:
