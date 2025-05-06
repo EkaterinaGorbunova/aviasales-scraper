@@ -36,3 +36,26 @@ Finding affordable flights on aviasales.com can be time-consuming and frustratin
 - Support for one-way flights and multi-city trips
 - Integration with calendar to find optimal travel dates
 
+## Run the application
+
+```bash
+# Clone the repository
+git clone https://github.com/EkaterinaGorbunova/aviasales-scraper.git
+cd aviasales-scraper
+
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp .env.example .env
+# Update .env with your Travelpayouts API token
+
+# Generate Prisma Client and create database
+npx prisma generate
+npx prisma db push
+
+# Run the application
+npm run dev
+```
+
+
