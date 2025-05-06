@@ -36,7 +36,7 @@ Finding affordable flights on aviasales.com can be time-consuming and frustratin
 - Support for one-way flights and multi-city trips
 - Integration with calendar to find optimal travel dates
 
-## Run the application
+## Run the Application
 
 ```bash
 # Clone the repository
