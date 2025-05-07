@@ -143,7 +143,7 @@ export async function fetchAndStoreTickets() {
     try {
       await client.$queryRaw`SELECT 1`;
       console.log("Database connection test successful");
-    } catch (dbError) {
+    } catch (dbError: any) {
       console.error("Database connection test failed:", dbError);
       throw new Error(`Database connection failed: ${dbError.message}`);
     }

@@ -4,9 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "prisma generate && tsc",
     "start": "node server.js",
-    "dev": "npx tsc && node server.js"
+    "dev": "npx prisma generate && npx tsc && node server.js"
   },
   "keywords": [],
   "author": "",
@@ -26,3 +26,4 @@
     "typescript": "^5.8.3"
   }
 }
+
