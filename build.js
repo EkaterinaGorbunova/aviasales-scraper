@@ -2,17 +2,17 @@ import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
+console.log('Starting build process...');
+
 // Ensure public directory exists
 if (!fs.existsSync('public')) {
+  console.log('Creating public directory...');
   fs.mkdirSync('public', { recursive: true });
 }
 
-// Check if index.html exists in public directory
-if (!fs.existsSync(path.join('public', 'index.html'))) {
-  console.error('Warning: public/index.html not found!');
-  
-  // Create a basic index.html if it doesn't exist
-  const basicHtml = `<!DOCTYPE html>
+// Create index.html in public directory
+console.log('Creating index.html...');
+const indexHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -26,24 +26,93 @@ if (!fs.existsSync(path.join('public', 'index.html'))) {
             padding: 20px;
         }
         h1 { color: #333; }
+        .card {
+            background-color: #f5f5f5;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:disabled {
+            background-color: #cccccc;
+        }
     </style>
 </head>
 <body>
     <h1>Flight Ticket Tracker</h1>
     <p>This application automatically fetches flight ticket prices.</p>
+    
+    <div class="card">
+        <h2>Manual Price Check</h2>
+        <button id="checkButton" onclick="runCheck()">Run Price Check</button>
+        <div id="result"></div>
+    </div>
+    
+    <script>
+        async function runCheck() {
+            const button = document.getElementById('checkButton');
+            const result = document.getElementById('result');
+            
+            button.disabled = true;
+            button.textContent = 'Running...';
+            
+            try {
+                const response = await fetch('/api/run-price-check');
+                const data = await response.json();
+                
+                if (data.success) {
+                    result.innerHTML = '<p style="color: green">✅ Price check completed successfully</p>';
+                } else {
+                    result.innerHTML = '<p style="color: red">❌ Error: ' + data.message + '</p>';
+                }
+            } catch (error) {
+                result.innerHTML = '<p style="color: red">❌ Failed to run price check</p>';
+            }
+            
+            button.disabled = false;
+            button.textContent = 'Run Price Check';
+        }
+    </script>
 </body>
 </html>`;
-  
-  fs.writeFileSync(path.join('public', 'index.html'), basicHtml);
-  console.log('Created basic index.html file');
-}
+
+fs.writeFileSync(path.join('public', 'index.html'), indexHtml);
+console.log('index.html created successfully');
 
 // Run Prisma generate
 console.log('Generating Prisma client...');
-execSync('npx prisma generate', { stdio: 'inherit' });
+try {
+  execSync('npx prisma generate', { stdio: 'inherit' });
+  console.log('Prisma client generated successfully');
+} catch (error) {
+  console.error('Error generating Prisma client:', error);
+  process.exit(1);
+}
 
 // Build TypeScript
 console.log('Building TypeScript...');
-execSync('npx tsc', { stdio: 'inherit' });
+try {
+  execSync('npx tsc', { stdio: 'inherit' });
+  console.log('TypeScript build completed successfully');
+} catch (error) {
+  console.error('Error building TypeScript:', error);
+  process.exit(1);
+}
+
+// Verify that the public directory and index.html exist
+if (fs.existsSync('public') && fs.existsSync(path.join('public', 'index.html'))) {
+  console.log('Verified: public/index.html exists');
+} else {
+  console.error('Error: public/index.html is missing after build');
+  process.exit(1);
+}
 
 console.log('Build completed successfully!');
