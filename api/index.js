@@ -4,8 +4,22 @@ import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import { fetchAndStoreTickets } from '../dist/index.js';
 import fs from 'fs';
+import cors from 'cors';
 
 dotenv.config();
+
+// Validate required environment variables
+const requiredEnvVars = ['DATABASE_URL', 'TRAVELPAYOUTS_API_TOKEN'];
+const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
+
+if (missingEnvVars.length > 0) {
+  console.error('❌ Missing required environment variables:', missingEnvVars.join(', '));
+  console.error('Please set these variables in your .env file or in your hosting environment');
+  
+  if (process.env.NODE_ENV === 'production') {
+    process.exit(1); // Exit in production to prevent starting with missing config
+  }
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -21,6 +35,13 @@ function getPrismaClient() {
 
 // Middleware to parse JSON
 app.use(express.json());
+
+// Add CORS middleware
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://aviasales-scraper.vercel.app/', 'https://www.aviasales-scraper.vercel.app/'] 
+    : '*'
+}));
 
 // Serve static files from the public directory
 app.use(express.static('public'));
@@ -202,11 +223,89 @@ app.post('/api/search-flights', async (req, res) => {
     
     console.log(`Found ${tickets.length} tickets in API response`);
     
+    // NEW CODE: Save tickets to database
+    const client = getPrismaClient();
+    let newTicketsCount = 0;
+    let duplicatesCount = 0;
+    
+    try {
+      console.log("Saving search results to database...");
+      
+      for (const ticket of tickets) {
+        try {
+          // Get outbound flight information (first segment, first leg)
+          const outboundLeg = ticket.segments[0]?.flight_legs[0];
+          const outboundFlight = outboundLeg?.flight_number || "Unknown";
+          const outboundAirline = outboundFlight.substring(0, 2);
+          
+          // Get return flight information (second segment, first leg)
+          const returnLeg = ticket.segments[1]?.flight_legs[0];
+          const returnFlight = returnLeg?.flight_number || "Unknown";
+          const returnAirline = returnFlight.substring(0, 2);
+          
+          console.log(`Processing ticket: ${outboundFlight} to ${returnFlight}, ${ticket.departure_at} - ${ticket.return_at}`);
+          
+          // Check if this ticket already exists in the database
+          const existingTicket = await client.ticket.findFirst({
+            where: {
+              departureAt: ticket.departure_at,
+              returnAt: ticket.return_at,
+              outboundFlight: outboundFlight,
+              returnFlight: returnFlight,
+              origin: outboundLeg?.origin || "Unknown",
+              destination: outboundLeg?.destination || "Unknown"
+            }
+          });
+          
+          if (existingTicket) {
+            console.log(`Ticket already exists in database with ID: ${existingTicket.id}`);
+            duplicatesCount++;
+          } else {
+            console.log("Creating new ticket record in database...");
+            // Create ticket data object for better debugging
+            const ticketData = {
+              departureAt: ticket.departure_at,
+              returnAt: ticket.return_at,
+              price: ticket.value,
+              tripDuration: ticket.trip_duration,
+              ticketLink: ticket.ticket_link,
+              origin: outboundLeg?.origin || "Unknown",
+              destination: outboundLeg?.destination || "Unknown",
+              outboundAirline: outboundAirline,
+              outboundFlight: outboundFlight,
+              returnAirline: returnAirline,
+              returnFlight: returnFlight,
+            };
+            
+            // Create ticket in database only if it doesn't exist
+            const newTicket = await client.ticket.create({
+              data: ticketData,
+            });
+            
+            console.log(`New ticket created with ID: ${newTicket.id}`);
+            newTicketsCount++;
+          }
+        } catch (ticketError) {
+          console.error('Error processing ticket:', ticketError);
+          // Continue with other tickets instead of failing the entire batch
+        }
+      }
+      
+      console.log(`✅ Saved ${newTicketsCount} new tickets to database. Skipped ${duplicatesCount} duplicates.`);
+    } catch (dbError) {
+      console.error('Error saving tickets to database:', dbError);
+      // Continue to return results to the user even if database save fails
+    }
+    
     // Return tickets to client
     return res.json({
       success: true,
-      message: `Found ${tickets.length} flights`,
-      tickets: tickets
+      message: `Found ${tickets.length} flights (Saved ${newTicketsCount} new tickets to database)`,
+      tickets: tickets,
+      dbStats: {
+        newTickets: newTicketsCount,
+        duplicates: duplicatesCount
+      }
     });
     
   } catch (error) {
@@ -315,4 +414,7 @@ process.on('SIGINT', async () => {
 
 // Export for serverless
 export default app;
+
+
+
 

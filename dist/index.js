@@ -88,8 +88,10 @@ export async function fetchAndStoreTickets() {
             return;
         }
         console.log(`Found ${tickets.length} tickets in API response`);
+        console.log("First ticket sample:", JSON.stringify(tickets[0], null, 2));
         // Test database connection before proceeding
         try {
+            console.log("Testing database connection...");
             await client.$queryRaw `SELECT 1`;
             console.log("Database connection test successful");
         }
@@ -109,6 +111,7 @@ export async function fetchAndStoreTickets() {
                 const returnLeg = ticket.segments[1]?.flight_legs[0];
                 const returnFlight = returnLeg?.flight_number || "Unknown";
                 const returnAirline = returnFlight.substring(0, 2);
+                console.log(`Processing ticket: ${outboundFlight} to ${returnFlight}, ${ticket.departure_at} - ${ticket.return_at}`);
                 // Check if this ticket already exists in the database
                 const existingTicket = await client.ticket.findFirst({
                     where: {
@@ -120,31 +123,38 @@ export async function fetchAndStoreTickets() {
                         destination: outboundLeg?.destination || "Unknown"
                     }
                 });
-                if (!existingTicket) {
-                    // Create ticket in database only if it doesn't exist
-                    await client.ticket.create({
-                        data: {
-                            departureAt: ticket.departure_at,
-                            returnAt: ticket.return_at,
-                            price: ticket.value,
-                            tripDuration: ticket.trip_duration,
-                            ticketLink: ticket.ticket_link,
-                            origin: outboundLeg?.origin || "Unknown",
-                            destination: outboundLeg?.destination || "Unknown",
-                            outboundAirline: outboundAirline,
-                            outboundFlight: outboundFlight,
-                            returnAirline: returnAirline,
-                            returnFlight: returnFlight,
-                        },
-                    });
-                    newTicketsCount++;
+                if (existingTicket) {
+                    console.log(`Ticket already exists in database with ID: ${existingTicket.id}`);
+                    duplicatesCount++;
                 }
                 else {
-                    duplicatesCount++;
+                    console.log("Creating new ticket record in database...");
+                    // Create ticket data object for better debugging
+                    const ticketData = {
+                        departureAt: ticket.departure_at,
+                        returnAt: ticket.return_at,
+                        price: ticket.value,
+                        tripDuration: ticket.trip_duration,
+                        ticketLink: ticket.ticket_link,
+                        origin: outboundLeg?.origin || "Unknown",
+                        destination: outboundLeg?.destination || "Unknown",
+                        outboundAirline: outboundAirline,
+                        outboundFlight: outboundFlight,
+                        returnAirline: returnAirline,
+                        returnFlight: returnFlight,
+                    };
+                    console.log("Ticket data to insert:", JSON.stringify(ticketData, null, 2));
+                    // Create ticket in database only if it doesn't exist
+                    const newTicket = await client.ticket.create({
+                        data: ticketData,
+                    });
+                    console.log(`New ticket created with ID: ${newTicket.id}`);
+                    newTicketsCount++;
                 }
             }
             catch (ticketError) {
-                console.error('Error processing ticket:', ticketError, 'Ticket data:', ticket);
+                console.error('Error processing ticket:', ticketError);
+                console.error('Ticket data that caused the error:', JSON.stringify(ticket, null, 2));
                 // Continue with other tickets instead of failing the entire batch
             }
         }
@@ -164,6 +174,7 @@ export async function fetchAndStoreTickets() {
         // Always disconnect from the database to prevent connection leaks
         try {
             await client.$disconnect();
+            console.log("Database connection closed");
         }
         catch (disconnectError) {
             console.error('Error disconnecting from database:', disconnectError);
