@@ -44,12 +44,33 @@ app.get('/api/run-price-check', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
+    // Log detailed error information server-side
     console.error('Price check failed:', error);
-    // Ensure we're returning JSON even in error cases
+    console.error('Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      code: error.code
+    });
+    
+    if (error.response) {
+      console.error('API Response error:', {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: error.response.data
+      });
+    }
+    
+    // Return a generic error message to the client in production
+    // or a more detailed one in development
     return res.status(500).json({ 
       success: false, 
       error: 'Price check failed',
-      message: error.message || 'Unknown error'
+      message: process.env.NODE_ENV === 'production' 
+        ? 'An unexpected error occurred' 
+        : error.message || 'Unknown error',
+      // Include a request ID to help correlate logs with specific requests
+      requestId: Date.now().toString(36) + Math.random().toString(36).substr(2)
     });
   }
 });
@@ -61,11 +82,23 @@ app.get('/', (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
+  // Log detailed error information
   console.error('Unhandled error:', err);
+  console.error('Error details:', {
+    name: err.name,
+    message: err.message,
+    stack: err.stack,
+    code: err.code
+  });
+  
+  // Generate a request ID to help correlate logs with specific requests
+  const requestId = Date.now().toString(36) + Math.random().toString(36).substr(2);
+  
   res.status(500).json({
     success: false,
     error: 'Server error',
-    message: process.env.NODE_ENV === 'production' ? 'An unexpected error occurred' : err.message
+    message: process.env.NODE_ENV === 'production' ? 'An unexpected error occurred' : err.message,
+    requestId: requestId
   });
 });
 
@@ -86,5 +119,6 @@ process.on('SIGINT', async () => {
 
 // Export for serverless
 export default app;
+
 
 

@@ -98,6 +98,8 @@ export async function fetchAndStoreTickets() {
   const client = getPrismaClient();
   
   try {
+    console.log("Making API request to:", GRAPHQL_URL);
+    
     const response = await axios.post(
       GRAPHQL_URL,
       { query: graphqlQuery },
@@ -109,70 +111,94 @@ export async function fetchAndStoreTickets() {
       }
     );
     
-    console.log("API response received");
+    console.log("API response received with status:", response.status);
 
     // Check if response contains data
-    if (!response.data || !response.data.data || !response.data.data.prices_round_trip) {
-      console.log('❌ No tickets or invalid response format.');
-      return;
+    if (!response.data) {
+      console.error('❌ No data in response:', response);
+      throw new Error('No data in API response');
+    }
+    
+    if (!response.data.data) {
+      console.error('❌ No data.data in response:', response.data);
+      throw new Error('Invalid API response format: missing data.data');
+    }
+    
+    if (!response.data.data.prices_round_trip) {
+      console.error('❌ No prices_round_trip in response:', response.data.data);
+      throw new Error('Invalid API response format: missing prices_round_trip');
     }
 
     // Use TicketData interface for type safety
     const tickets: TicketData[] = response.data.data.prices_round_trip;
 
     if (!tickets || tickets.length === 0) {
-      console.log('❌ No tickets found.');
+      console.log('❌ No tickets found in API response.');
       return;
     }
 
-    console.log(`Found ${tickets.length} tickets:`);
+    console.log(`Found ${tickets.length} tickets in API response`);
+    
+    // Test database connection before proceeding
+    try {
+      await client.$queryRaw`SELECT 1`;
+      console.log("Database connection test successful");
+    } catch (dbError) {
+      console.error("Database connection test failed:", dbError);
+      throw new Error(`Database connection failed: ${dbError.message}`);
+    }
     
     let newTicketsCount = 0;
     let duplicatesCount = 0;
     
     for (const ticket of tickets) {
-      // Get outbound flight information (first segment, first leg)
-      const outboundLeg = ticket.segments[0]?.flight_legs[0];
-      const outboundFlight = outboundLeg?.flight_number || "Unknown";
-      const outboundAirline = outboundFlight.substring(0, 2);
-      
-      // Get return flight information (second segment, first leg)
-      const returnLeg = ticket.segments[1]?.flight_legs[0];
-      const returnFlight = returnLeg?.flight_number || "Unknown";
-      const returnAirline = returnFlight.substring(0, 2);
-      
-      // Check if this ticket already exists in the database
-      const existingTicket = await client.ticket.findFirst({
-        where: {
-          departureAt: ticket.departure_at,
-          returnAt: ticket.return_at,
-          outboundFlight: outboundFlight,
-          returnFlight: returnFlight,
-          origin: outboundLeg?.origin || "Unknown",
-          destination: outboundLeg?.destination || "Unknown"
-        }
-      });
-      
-      if (!existingTicket) {
-        // Create ticket in database only if it doesn't exist
-        await client.ticket.create({
-          data: {
+      try {
+        // Get outbound flight information (first segment, first leg)
+        const outboundLeg = ticket.segments[0]?.flight_legs[0];
+        const outboundFlight = outboundLeg?.flight_number || "Unknown";
+        const outboundAirline = outboundFlight.substring(0, 2);
+        
+        // Get return flight information (second segment, first leg)
+        const returnLeg = ticket.segments[1]?.flight_legs[0];
+        const returnFlight = returnLeg?.flight_number || "Unknown";
+        const returnAirline = returnFlight.substring(0, 2);
+        
+        // Check if this ticket already exists in the database
+        const existingTicket = await client.ticket.findFirst({
+          where: {
             departureAt: ticket.departure_at,
             returnAt: ticket.return_at,
-            price: ticket.value,
-            tripDuration: ticket.trip_duration,
-            ticketLink: ticket.ticket_link,
-            origin: outboundLeg?.origin || "Unknown",
-            destination: outboundLeg?.destination || "Unknown",
-            outboundAirline: outboundAirline,
             outboundFlight: outboundFlight,
-            returnAirline: returnAirline,
             returnFlight: returnFlight,
-          },
+            origin: outboundLeg?.origin || "Unknown",
+            destination: outboundLeg?.destination || "Unknown"
+          }
         });
-        newTicketsCount++;
-      } else {
-        duplicatesCount++;
+        
+        if (!existingTicket) {
+          // Create ticket in database only if it doesn't exist
+          await client.ticket.create({
+            data: {
+              departureAt: ticket.departure_at,
+              returnAt: ticket.return_at,
+              price: ticket.value,
+              tripDuration: ticket.trip_duration,
+              ticketLink: ticket.ticket_link,
+              origin: outboundLeg?.origin || "Unknown",
+              destination: outboundLeg?.destination || "Unknown",
+              outboundAirline: outboundAirline,
+              outboundFlight: outboundFlight,
+              returnAirline: returnAirline,
+              returnFlight: returnFlight,
+            },
+          });
+          newTicketsCount++;
+        } else {
+          duplicatesCount++;
+        }
+      } catch (ticketError) {
+        console.error('Error processing ticket:', ticketError, 'Ticket data:', ticket);
+        // Continue with other tickets instead of failing the entire batch
       }
     }
 
@@ -188,6 +214,13 @@ export async function fetchAndStoreTickets() {
     
     // Re-throw the error so the caller can handle it
     throw error;
+  } finally {
+    // Always disconnect from the database to prevent connection leaks
+    try {
+      await client.$disconnect();
+    } catch (disconnectError) {
+      console.error('Error disconnecting from database:', disconnectError);
+    }
   }
 }
 
