@@ -33,6 +33,16 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Test endpoint to verify API is working
+app.get('/api/test', (req, res) => {
+  res.json({
+    success: true,
+    message: 'API is working',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
 // Manual trigger endpoint for price check
 app.get('/api/run-price-check', async (req, res) => {
   console.log(`Manually triggered price check at ${new Date().toISOString()}`);
@@ -150,6 +160,12 @@ process.on('SIGINT', async () => {
 
 // Export for serverless
 export default app;
+
+
+
+
+
+
 
 
 
