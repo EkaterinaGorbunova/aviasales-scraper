@@ -2,7 +2,6 @@
   "version": 2,
   "buildCommand": "npm run build",
   "outputDirectory": "public",
-  "framework": "node",
   "functions": {
     "api/**/*.js": {
       "memory": 1024,
@@ -14,4 +13,6 @@
     { "src": "/(.*)", "dest": "/server.js" }
   ]
 }
+
+
 
