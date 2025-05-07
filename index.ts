@@ -5,7 +5,14 @@ import dotenv from 'dotenv';
 // Load environment variables from .env file
 dotenv.config();
 
-const prisma = new PrismaClient();
+// Initialize Prisma client with proper typing
+let prisma: PrismaClient | undefined;
+function getPrismaClient(): PrismaClient {
+  if (!prisma) {
+    prisma = new PrismaClient();
+  }
+  return prisma;
+}
 
 interface FlightLeg {
   aircraft_code: string;
@@ -88,6 +95,8 @@ const graphqlQuery = `
 
 export async function fetchAndStoreTickets() {
   console.log("GraphQL API request started...");
+  const client = getPrismaClient();
+  
   try {
     const response = await axios.post(
       GRAPHQL_URL,
@@ -100,7 +109,7 @@ export async function fetchAndStoreTickets() {
       }
     );
     
-    console.log("Full API response:", JSON.stringify(response.data, null, 2));
+    console.log("API response received");
 
     // Check if response contains data
     if (!response.data || !response.data.data || !response.data.data.prices_round_trip) {
@@ -118,6 +127,9 @@ export async function fetchAndStoreTickets() {
 
     console.log(`Found ${tickets.length} tickets:`);
     
+    let newTicketsCount = 0;
+    let duplicatesCount = 0;
+    
     for (const ticket of tickets) {
       // Get outbound flight information (first segment, first leg)
       const outboundLeg = ticket.segments[0]?.flight_legs[0];
@@ -125,69 +137,69 @@ export async function fetchAndStoreTickets() {
       const outboundAirline = outboundFlight.substring(0, 2);
       
       // Get return flight information (second segment, first leg)
-      // For round trips, there should be at least 2 segments
       const returnLeg = ticket.segments[1]?.flight_legs[0];
       const returnFlight = returnLeg?.flight_number || "Unknown";
       const returnAirline = returnFlight.substring(0, 2);
       
-      // Create full ticket URL for display purposes
-      const fullTicketLink = `https://www.aviasales.com/search/${ticket.ticket_link}`;
-      
-      // Log information about each ticket
-      console.log(`
-        Departure: ${ticket.departure_at}
-        Return: ${ticket.return_at}
-        Price: ${ticket.value} CAD
-        Duration: ${ticket.trip_duration} hours
-        Link: ${fullTicketLink}
-        Outbound Airline: ${outboundAirline}
-        Outbound Flight: ${outboundFlight}
-        Return Airline: ${returnAirline}
-        Return Flight: ${returnFlight}
-        Origin: ${outboundLeg?.origin || "Unknown"}
-        Destination: ${outboundLeg?.destination || "Unknown"}
-      `);
-      
-      // Save to database with just the ticket path, not the full URL
-      await prisma.ticket.create({
-        data: {
+      // Check if this ticket already exists in the database
+      const existingTicket = await client.ticket.findFirst({
+        where: {
           departureAt: ticket.departure_at,
           returnAt: ticket.return_at,
-          price: ticket.value,
-          tripDuration: ticket.trip_duration,
-          ticketLink: ticket.ticket_link, // Store just the path
-          origin: outboundLeg?.origin || "Unknown",
-          destination: outboundLeg?.destination || "Unknown",
-          outboundAirline: outboundAirline,
           outboundFlight: outboundFlight,
-          returnAirline: returnAirline,
           returnFlight: returnFlight,
-        },
+          origin: outboundLeg?.origin || "Unknown",
+          destination: outboundLeg?.destination || "Unknown"
+        }
       });
+      
+      if (!existingTicket) {
+        // Create ticket in database only if it doesn't exist
+        await client.ticket.create({
+          data: {
+            departureAt: ticket.departure_at,
+            returnAt: ticket.return_at,
+            price: ticket.value,
+            tripDuration: ticket.trip_duration,
+            ticketLink: ticket.ticket_link,
+            origin: outboundLeg?.origin || "Unknown",
+            destination: outboundLeg?.destination || "Unknown",
+            outboundAirline: outboundAirline,
+            outboundFlight: outboundFlight,
+            returnAirline: returnAirline,
+            returnFlight: returnFlight,
+          },
+        });
+        newTicketsCount++;
+      } else {
+        duplicatesCount++;
+      }
     }
 
-    console.log(`✅ Saved ${tickets.length} tickets to database.`);
+    console.log(`✅ Saved ${newTicketsCount} new tickets to database. Skipped ${duplicatesCount} duplicates.`);
   } catch (error: any) {
     console.error('Error executing request:', error);
-    console.error('⚠️ API or database error:', error.response?.data || error.message);
     
     // Add more error information
     if (error.response) {
       console.error('Response status:', error.response.status);
-      console.error('Response headers:', error.response.headers);
       console.error('Response data:', error.response.data);
     }
     
     // Re-throw the error so the caller can handle it
     throw error;
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
 // If this file is run directly, execute the function
 if (import.meta.url === `file://${process.argv[1]}`) {
-  fetchAndStoreTickets();
+  fetchAndStoreTickets()
+    .catch(console.error)
+    .finally(async () => {
+      if (prisma) {
+        await prisma.$disconnect();
+      }
+    });
 }
 
 // Helper function to get the full URL

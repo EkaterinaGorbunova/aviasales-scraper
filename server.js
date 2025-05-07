@@ -6,8 +6,16 @@ import { fetchAndStoreTickets } from './dist/index.js';
 dotenv.config();
 
 const app = express();
-const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
+
+// Initialize Prisma client only when needed to avoid connection issues in serverless
+let prisma;
+function getPrismaClient() {
+  if (!prisma) {
+    prisma = new PrismaClient();
+  }
+  return prisma;
+}
 
 // Middleware to parse JSON
 app.use(express.json());
@@ -61,13 +69,22 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port http://localhost:${PORT}`);
-});
+// Only start the server if not in a serverless environment
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`Server running on port http://localhost:${PORT}`);
+  });
+}
 
 // Handle graceful shutdown
 process.on('SIGINT', async () => {
-  await prisma.$disconnect();
+  if (prisma) {
+    await prisma.$disconnect();
+  }
   process.exit(0);
 });
+
+// Export for serverless
+export default app;
+
 
