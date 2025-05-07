@@ -226,6 +226,13 @@ app.post('/api/search-flights', async (req, res) => {
     
     console.log(`Found ${tickets.length} tickets in API response`);
     
+    // Ensure all ticket links have the correct domain
+    tickets.forEach(ticket => {
+      if (ticket.ticket_link && !ticket.ticket_link.startsWith('http')) {
+        ticket.ticket_link = `https://www.aviasales.com/search${ticket.ticket_link}`;
+      }
+    });
+    
     // NEW CODE: Save tickets to database
     const client = getPrismaClient();
     let newTicketsCount = 0;
@@ -427,6 +434,8 @@ process.on('SIGINT', async () => {
 
 // Export for serverless
 export default app;
+
+
 
 
 

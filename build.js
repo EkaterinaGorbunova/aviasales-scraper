@@ -251,6 +251,11 @@ const indexHtml = `<!DOCTYPE html>
                 const departDate = new Date(ticket.departure_at);
                 const returnDate = new Date(ticket.return_at);
                 
+                // Ensure ticket_link is properly formatted
+                const ticketUrl = ticket.ticket_link.startsWith('http') 
+                    ? ticket.ticket_link 
+                    : \`https://www.aviasales.com/search\${ticket.ticket_link}\`;
+                
                 const ticketHtml = \`
                     <div class="ticket">
                         <div class="price">\${currencySymbol}\${ticket.value}</div>
@@ -265,7 +270,7 @@ const indexHtml = `<!DOCTYPE html>
                             </div>
                         </div>
                         <div style="margin-top: 10px;">
-                            <a href="\${ticket.ticket_link}" target="_blank" rel="noopener">View on Aviasales</a>
+                            <a href="\${ticketUrl}" target="_blank" rel="noopener">View on Aviasales</a>
                         </div>
                     </div>
                 \`;
@@ -307,7 +312,7 @@ const indexHtml = `<!DOCTYPE html>
         }
     </script>
 </body>
-</html>`;
+</html>`; // Fix the template string syntax in build.js
 
 fs.writeFileSync(path.join('public', 'index.html'), indexHtml);
 console.log('index.html created successfully');
@@ -344,4 +349,6 @@ if (fs.existsSync('public') && fs.existsSync(path.join('public', 'index.html')))
 // Just make sure public directory has all the files we need
 
 console.log('Build completed successfully!');
+
+
 

@@ -184,13 +184,18 @@ export async function fetchAndStoreTickets() {
           duplicatesCount++;
         } else {
           console.log("Creating new ticket record in database...");
-          // Create ticket data object for better debugging
+          // Ensure ticket_link is properly formatted
+          const ticketLink = ticket.ticket_link.startsWith('http') 
+            ? ticket.ticket_link 
+            : `https://www.aviasales.com/search${ticket.ticket_link}`;
+          
+          // Create ticket data object for better debugging and clarity
           const ticketData = {
             departureAt: ticket.departure_at,
             returnAt: ticket.return_at,
             price: ticket.value,
             tripDuration: ticket.trip_duration,
-            ticketLink: ticket.ticket_link,
+            ticketLink: ticketLink, // Use the properly formatted link
             origin: outboundLeg?.origin || "Unknown",
             destination: outboundLeg?.destination || "Unknown",
             outboundAirline: outboundAirline,
@@ -252,7 +257,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 
 // Helper function to get the full URL
 function getFullTicketUrl(ticketPath: string): string {
-  return `https://www.aviasales.com/search/${ticketPath}`;
+  return `https://www.aviasales.com/search${ticketPath}`;
 }
 
 // Example usage when retrieving from database:
