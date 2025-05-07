@@ -2,3 +2,7 @@ node_modules
 # Keep environment variables out of version control
 .env
 notes.md
+# Don't ignore public directory
+!public/
+!public/index.html
+

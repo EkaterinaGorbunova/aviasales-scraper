@@ -5,8 +5,12 @@
       "src": "server.js",
       "use": "@vercel/node",
       "config": {
-        "buildCommand": "npm run build"
+        "buildCommand": "npx prisma generate && npx tsc"
       }
+    },
+    {
+      "src": "public/**",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
@@ -23,5 +27,7 @@
     "NODE_ENV": "production"
   }
 }
+
+
 
 

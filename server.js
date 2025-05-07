@@ -77,7 +77,12 @@ app.get('/api/run-price-check', async (req, res) => {
 
 // Default route
 app.get('/', (req, res) => {
-  res.sendFile('index.html', { root: './public' });
+  try {
+    res.sendFile('index.html', { root: './public' });
+  } catch (error) {
+    console.error('Error serving index.html:', error);
+    res.status(500).send('Error loading page. Please try again later.');
+  }
 });
 
 // Error handling middleware
@@ -119,6 +124,7 @@ process.on('SIGINT', async () => {
 
 // Export for serverless
 export default app;
+
 
 
 
