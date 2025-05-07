@@ -107,6 +107,17 @@ try {
   process.exit(1);
 }
 
+// Ensure dist directory exists
+if (!fs.existsSync('dist')) {
+  console.log('Creating dist directory...');
+  fs.mkdirSync('dist', { recursive: true });
+}
+
+// Copy public folder to dist folder
+console.log('Copying public folder to dist folder...');
+copyFolderRecursiveSync('public', 'dist');
+console.log('Public folder copied to dist successfully');
+
 // Verify that the public directory and index.html exist
 if (fs.existsSync('public') && fs.existsSync(path.join('public', 'index.html'))) {
   console.log('Verified: public/index.html exists');
@@ -115,4 +126,49 @@ if (fs.existsSync('public') && fs.existsSync(path.join('public', 'index.html')))
   process.exit(1);
 }
 
+// Verify that the dist/public directory exists
+if (fs.existsSync(path.join('dist', 'public'))) {
+  console.log('Verified: dist/public directory exists');
+} else {
+  console.error('Error: dist/public directory is missing after build');
+  process.exit(1);
+}
+
 console.log('Build completed successfully!');
+
+// Function to copy a file
+function copyFileSync(source, target) {
+  let targetFile = target;
+  
+  // If target is a directory, a new file with the same name will be created
+  if (fs.existsSync(target) && fs.lstatSync(target).isDirectory()) {
+    targetFile = path.join(target, path.basename(source));
+  }
+  
+  fs.writeFileSync(targetFile, fs.readFileSync(source));
+  console.log(`Copied file: ${source} -> ${targetFile}`);
+}
+
+// Function to copy a folder recursively
+function copyFolderRecursiveSync(source, target) {
+  // Check if folder needs to be created or integrated
+  const targetFolder = path.join(target, path.basename(source));
+  if (!fs.existsSync(targetFolder)) {
+    fs.mkdirSync(targetFolder, { recursive: true });
+    console.log(`Created directory: ${targetFolder}`);
+  }
+  
+  // Copy files and subfolders
+  if (fs.lstatSync(source).isDirectory()) {
+    const files = fs.readdirSync(source);
+    files.forEach(function(file) {
+      const currentSource = path.join(source, file);
+      if (fs.lstatSync(currentSource).isDirectory()) {
+        copyFolderRecursiveSync(currentSource, targetFolder);
+      } else {
+        copyFileSync(currentSource, targetFolder);
+      }
+    });
+  }
+}
+

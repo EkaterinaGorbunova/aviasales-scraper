@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "node build.js && cp -r public ./",
+    "build": "node build.js",
     "start": "node server.js",
     "dev": "npx prisma generate && npx tsc && node server.js"
   },
@@ -26,6 +26,7 @@
     "typescript": "^5.8.3"
   }
 }
+
 
 
 
