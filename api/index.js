@@ -87,6 +87,160 @@ app.get('/api/run-price-check', async (req, res) => {
   }
 });
 
+// Search flights endpoint
+app.post('/api/search-flights', async (req, res) => {
+  console.log(`Flight search request received at ${new Date().toISOString()}`);
+  console.log('Search parameters:', req.body);
+  
+  try {
+    const {
+      origin,
+      destination,
+      departDateMin,
+      departDateMax,
+      returnDateMin,
+      returnDateMax,
+      currency,
+      limit
+    } = req.body;
+    
+    // Validate required parameters
+    if (!origin || !destination || !departDateMin || !departDateMax || !returnDateMin || !returnDateMax) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required search parameters'
+      });
+    }
+    
+    // Build GraphQL query with the provided parameters
+    const graphqlQuery = `
+    {
+      prices_round_trip(
+        params: {
+          origin: "${origin}"
+          destination: "${destination}"
+          depart_date_min: "${departDateMin}"
+          depart_date_max: "${departDateMax}"
+          return_date_min: "${returnDateMin}"
+          return_date_max: "${returnDateMax}"
+          no_lowcost: true
+        }
+        paging: {
+          limit: ${parseInt(limit) || 5}
+          offset: 0
+        }
+        sorting: VALUE_ASC
+        currency: "${currency || 'cad'}"
+      ) {
+        departure_at
+        return_at
+        value
+        trip_duration
+        ticket_link
+        segments {
+          flight_legs {
+            aircraft_code
+            flight_number
+            origin
+            destination
+            departure_at
+            arrival_at
+          }
+        }
+      }
+    }`;
+    
+    // Get API key from environment variables
+    const API_TOKEN = process.env.TRAVELPAYOUTS_API_TOKEN;
+    
+    // Check if API key exists
+    if (!API_TOKEN) {
+      console.error('❌ API key not found. Make sure the .env file contains TRAVELPAYOUTS_API_TOKEN');
+      return res.status(500).json({
+        success: false,
+        message: 'API key not configured on server'
+      });
+    }
+    
+    // GraphQL API endpoint
+    const GRAPHQL_URL = 'https://api.travelpayouts.com/graphql/v1/query';
+    
+    console.log("Making API request to:", GRAPHQL_URL);
+    
+    const axios = (await import('axios')).default;
+    const response = await axios.post(
+      GRAPHQL_URL,
+      { query: graphqlQuery },
+      { 
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Access-token': API_TOKEN
+        } 
+      }
+    );
+    
+    console.log("API response received with status:", response.status);
+    
+    // Check if response contains data
+    if (!response.data) {
+      console.error('❌ No data in response:', response);
+      throw new Error('No data in API response');
+    }
+    
+    if (!response.data.data) {
+      console.error('❌ No data.data in response:', response.data);
+      throw new Error('Invalid API response format: missing data.data');
+    }
+    
+    if (!response.data.data.prices_round_trip) {
+      console.error('❌ No prices_round_trip in response:', response.data.data);
+      throw new Error('Invalid API response format: missing prices_round_trip');
+    }
+    
+    // Get tickets from response
+    const tickets = response.data.data.prices_round_trip;
+    
+    console.log(`Found ${tickets.length} tickets in API response`);
+    
+    // Return tickets to client
+    return res.json({
+      success: true,
+      message: `Found ${tickets.length} flights`,
+      tickets: tickets
+    });
+    
+  } catch (error) {
+    // Log detailed error information server-side
+    console.error('Flight search failed:', error);
+    console.error('Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      code: error.code
+    });
+    
+    if (error.response) {
+      console.error('API Response error:', {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: error.response.data
+      });
+    }
+    
+    // Return a generic error message to the client in production
+    // or a more detailed one in development
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Flight search failed',
+      message: process.env.NODE_ENV === 'production' 
+        ? 'An unexpected error occurred' 
+        : error.message || 'Unknown error',
+      // Include a request ID to help correlate logs with specific requests
+      requestId: Date.now().toString(36) + Math.random().toString(36).substr(2)
+    });
+  }
+});
+
 // Default route
 app.get('/', (req, res) => {
   try {
@@ -161,3 +315,4 @@ process.on('SIGINT', async () => {
 
 // Export for serverless
 export default app;
+
