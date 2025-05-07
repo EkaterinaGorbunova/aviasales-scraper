@@ -117,6 +117,7 @@ app.post('/api/search-flights', async (req, res) => {
   console.log('Search parameters:', req.body);
   
   try {
+    // Extract search parameters from request body
     const {
       origin,
       destination,
@@ -124,8 +125,8 @@ app.post('/api/search-flights', async (req, res) => {
       departDateMax,
       returnDateMin,
       returnDateMax,
-      currency,
-      limit
+      currency = 'cad',  // Default to CAD if not specified
+      limit = 5          // Default to 5 results if not specified
     } = req.body;
     
     // Validate required parameters
@@ -154,7 +155,7 @@ app.post('/api/search-flights', async (req, res) => {
           offset: 0
         }
         sorting: VALUE_ASC
-        currency: "${currency || 'cad'}"
+        currency: "${currency.toLowerCase()}"
       ) {
         departure_at
         return_at
@@ -434,6 +435,8 @@ process.on('SIGINT', async () => {
 
 // Export for serverless
 export default app;
+
+
 
 
 

@@ -18,6 +18,8 @@ const indexHtml = `<!DOCTYPE html>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Flight Ticket Tracker</title>
+    <!-- Simple UTC clock icon as favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2245%22 fill=%22white%22 stroke=%22%234CAF50%22 stroke-width=%225%22 /><text x=%2250%22 y=%2250%22 text-anchor=%22middle%22 dominant-baseline=%22middle%22 font-family=%22Arial%22 font-size=%2240%22 font-weight=%22bold%22 fill=%22%234CAF50%22>8</text><text x=%2250%22 y=%2270%22 text-anchor=%22middle%22 dominant-baseline=%22middle%22 font-family=%22Arial%22 font-size=%2215%22 fill=%22%234CAF50%22>UTC</text></svg>" type="image/svg+xml">
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -86,6 +88,12 @@ const indexHtml = `<!DOCTYPE html>
             font-size: 1.5em;
             font-weight: bold;
             color: #4CAF50;
+        }
+        .price-usd {
+            font-size: 1.1em;
+            color: #666;
+            margin-top: 5px;
+            font-style: italic;
         }
         .flight-info {
             display: flex;
@@ -256,9 +264,26 @@ const indexHtml = `<!DOCTYPE html>
                     ? ticket.ticket_link 
                     : \`https://www.aviasales.com/search\${ticket.ticket_link}\`;
                 
+                // Calculate USD price if not already in USD
+                let usdPrice = ticket.value;
+                let usdDisplay = '';
+                
+                if (currency.toLowerCase() !== 'usd') {
+                    // Approximate conversion rates
+                    const conversionRates = {
+                        'cad': 0.74, // 1 CAD = 0.74 USD
+                        'eur': 1.09  // 1 EUR = 1.09 USD
+                    };
+                    
+                    const rate = conversionRates[currency.toLowerCase()] || 1;
+                    usdPrice = Math.round(ticket.value * rate);
+                    usdDisplay = \`<div class="price-usd">≈ $\${usdPrice} USD</div>\`;
+                }
+                
                 const ticketHtml = \`
                     <div class="ticket">
-                        <div class="price">\${currencySymbol}\${ticket.value}</div>
+                        <div class="price">\${currencySymbol}\${ticket.value} \${currency.toUpperCase()}</div>
+                        \${usdDisplay}
                         <div class="flight-info">
                             <div>
                                 <strong>Outbound:</strong> \${formatDateForDisplay(departDate)}<br>
@@ -349,6 +374,8 @@ if (fs.existsSync('public') && fs.existsSync(path.join('public', 'index.html')))
 // Just make sure public directory has all the files we need
 
 console.log('Build completed successfully!');
+
+
 
 
 
