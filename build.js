@@ -56,6 +56,12 @@ const indexHtml = `<!DOCTYPE html>
         <div id="result"></div>
     </div>
     
+    <div class="card">
+        <h2>API Status</h2>
+        <button onclick="testApi()">Test API</button>
+        <div id="apiStatus"></div>
+    </div>
+    
     <script>
         async function runCheck() {
             const button = document.getElementById('checkButton');
@@ -66,19 +72,42 @@ const indexHtml = `<!DOCTYPE html>
             
             try {
                 const response = await fetch('/api/run-price-check');
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(\`Server responded with \${response.status}: \${errorText}\`);
+                }
+                
                 const data = await response.json();
                 
                 if (data.success) {
                     result.innerHTML = '<p style="color: green">✅ Price check completed successfully</p>';
                 } else {
-                    result.innerHTML = '<p style="color: red">❌ Error: ' + data.message + '</p>';
+                    result.innerHTML = \`<p style="color: red">❌ Error: \${data.message || 'Unknown error'}</p>\`;
+                    console.error('API error details:', data);
                 }
             } catch (error) {
-                result.innerHTML = '<p style="color: red">❌ Failed to run price check</p>';
+                result.innerHTML = \`<p style="color: red">❌ Failed to run price check: \${error.message}</p>\`;
+                console.error('Request error:', error);
             }
             
             button.disabled = false;
             button.textContent = 'Run Price Check';
+        }
+        
+        async function testApi() {
+            const status = document.getElementById('apiStatus');
+            status.innerHTML = '<p>Testing API...</p>';
+            
+            try {
+                const response = await fetch('/api/test');
+                const data = await response.json();
+                status.innerHTML = \`<p style="color: green">✅ API is working: \${data.message}</p>\`;
+                console.log('API test response:', data);
+            } catch (error) {
+                status.innerHTML = \`<p style="color: red">❌ API test failed: \${error.message}</p>\`;
+                console.error('API test error:', error);
+            }
         }
     </script>
 </body>
