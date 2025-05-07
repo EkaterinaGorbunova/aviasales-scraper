@@ -15,11 +15,14 @@ if [ ! -d "public" ]; then
   mkdir -p public
 fi
 
-# Copy static files to public directory
-echo "Copying static files..."
-if [ -d "dist/public" ]; then
-  cp -r dist/public/* public/
-fi
+# Run the build.js script to create index.html
+echo "Running build.js to create index.html..."
+node build.js
+
+# Verify public directory contents
+echo "Verifying public directory contents..."
+ls -la public/
 
 echo "Build completed successfully!"
+
 

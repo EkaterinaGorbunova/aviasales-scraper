@@ -44,7 +44,10 @@ app.use(cors({
 }));
 
 // Serve static files from the public directory
-app.use(express.static('public'));
+app.use(express.static('public', {
+  maxAge: process.env.NODE_ENV === 'production' ? '1d' : 0,
+  index: ['index.html']
+}));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -343,13 +346,23 @@ app.post('/api/search-flights', async (req, res) => {
 // Default route
 app.get('/', (req, res) => {
   try {
+    // Log the current directory and files for debugging
+    console.log('Current directory:', process.cwd());
+    console.log('Public directory exists:', fs.existsSync('./public'));
+    
+    if (fs.existsSync('./public')) {
+      console.log('Files in public directory:', fs.readdirSync('./public'));
+    }
+    
     // Check if index.html exists
     const indexPath = './public/index.html';
     if (fs.existsSync(indexPath)) {
-      res.sendFile('index.html', { root: './public' });
+      console.log('Serving index.html from public directory');
+      return res.sendFile('index.html', { root: './public' });
     } else {
+      console.log('index.html not found, serving fallback HTML');
       // If index.html doesn't exist, send a basic HTML response
-      res.send(`
+      return res.send(`
         <!DOCTYPE html>
         <html lang="en">
         <head>
@@ -414,6 +427,7 @@ process.on('SIGINT', async () => {
 
 // Export for serverless
 export default app;
+
 
 
 

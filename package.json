@@ -4,7 +4,7 @@
   "description": "",
   "main": "api/index.js",
   "scripts": {
-    "build": "node build.js",
+    "build": "npx tsc && node build.js",
     "start": "node api/index.js",
     "dev": "npx prisma generate && npx tsc && node api/index.js"
   },
